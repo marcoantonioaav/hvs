@@ -1,52 +1,106 @@
-# Project Title
+# Standalone HVS Index for ANNS Seed Selection Benchmarking
 
-HVS: Hierarchical Graph Structure Based on Voronoi Diagrams for Solving Approximate Nearest Neighbor Search
+This repository is a refactored implementation of **HVS (Hierarchical Graph Structure Based on Voronoi Diagrams)**, decoupled from HNSW graph dependencies to serve as a standalone seed selection and vector index benchmark engine.
 
-## Getting Started
+Original Paper: *"HVS: Hierarchical Graph Structure Based on Voronoi Diagrams for Solving Approximate Nearest Neighbor Search"* ([VLDB 2021](https://www.vldb.org/pvldb/vol15/p246-lu.pdf)).
 
-### Prerequisites
+---
 
-* OpenCV 3.30+
-* GCC 4.9+ with OpenMP
-* CMake 2.8+
-* Boost 1.55+
-* TCMalloc
+## Features
 
-### Datasets and query sets
+- **Decoupled HVS Core**: The HVS Voronoi tree navigation logic (`hvs::HVSIndex`) operates independently of HNSW graph edge structures.
+- **HDF5 `.h5` Ingestion**: Directly reads base dataset vectors and query vectors from HDF5 files using the `/embeddings` dataset key.
+- **Distance Computation Tracking**: Tracks exact metric evaluations per query and reports average distance computations alongside Query-per-Second (QPS) throughput.
+- **Top-$k$ Neighbor IDs & Distances**: Outputs calculated neighbor indices and distances directly without needing ground truth (`.gt`) files.
+- **Dual Distance Metrics**: Supports both Euclidean distance (`l2`) and `cosine` distance.
 
-* Tiny80M (https://drive.google.com/file/d/1PzW9cqi8VbzH9Bu_7UDWAXjA2DlBorG3/view?usp=sharing)
-* Other real datasets (https://www.cse.cuhk.edu.hk/systems/hash/gqr/datasets.html)
+---
 
-### Compile On Ubuntu
+## Prerequisites
 
-Complie HVS (based on NSW)
+- **Compiler**: GCC with C++14 standard support and OpenMP (`-fopenmp`)
+- **Build System**: CMake (v3.10+)
+- **Libraries**:
+  - `libhdf5-dev` (HDF5 development libraries)
+  - `openmpi-bin` / `libhdf5-openmpi-dev` (if using parallel HDF5)
 
-```shell
-$ cd hnsw/
-$ mkdir build/ && cd build/
+On Ubuntu/Debian:
+```bash
+sudo apt-get update
+sudo apt-get install build-essential cmake libhdf5-dev
+```
+
+---
+
+## How to Compile
+
+Build the static library `libhvs_static.a` and the benchmark CLI binary `main`:
+
+```bash
+cd hnsw/
+mkdir -p build && cd build
 cmake ..
-make 
-```
-## Commands
-
-* `K` is the value of top-K, `L` is the value of efsearch and `qn` is the size of query set
-* `T` and `delta` are user-specified parameters of HVS
-* The data set, query set and the ground_truth set are stored in dPath.ds, qPath.q and truth.gt
-
-Build HVS index
-```shell
-./hnsw/build/main ${dPath}.ds nullptr ${n} ${d} ${T} -1 ${delta} -1
-```
-Search in HVS
-```shell
-./hnsw/build/main ${dPath}.ds ${qPath}.q ${n} ${d} ${T} ${qn} ${K} ${L}
+make
 ```
 
-## A running example (ImageNet)
-* Donwload the dataset, query set and the ground truth set of ImageNet from the following link
-https://drive.google.com/file/d/1WV78sZT1j1oz-GoZTQdyKaNQgulRLe2O/view?usp=sharing
-* Put all three files in the main folder
-* Run the script
-```shell
-bash run_image.sh
+---
+
+## Running the Benchmark CLI
+
+The executable accepts the dataset `.h5` file, query `.h5` file, distance metric, top-$k$, hierarchy level count, search beam width ($ef_{search}$), and optional output file path.
+
+### Command Syntax
+
+```bash
+./hnsw/build/main <dataset.h5> <query.h5> [metric] [k] [levels] [ef_search] [output.txt]
+```
+
+### Parameters
+
+- `<dataset.h5>`: Path to base dataset HDF5 file (must contain dataset key `/embeddings`).
+- `<query.h5>`: Path to query dataset HDF5 file (must contain dataset key `/embeddings`).
+- `[metric]`: Distance metric type (`l2` or `cosine`, default: `l2`).
+- `[k]`: Top-$k$ nearest neighbors to retrieve (default: `10`).
+- `[levels]`: Number of HVS hierarchy levels $T$ (default: `1`).
+- `[ef_search]`: Search beam width / candidate pool size (default: `1000`).
+- `[output.txt]`: Optional file path to save $k$-NN neighbor IDs and distances.
+
+### Usage Example
+
+```bash
+# Run with L2 distance
+./hnsw/build/main dataset.h5 query.h5 l2 10 1 1000 output_l2.txt
+
+# Run with Cosine distance
+./hnsw/build/main dataset.h5 query.h5 cosine 10 1 1000 output_cosine.txt
+```
+
+---
+
+## C++ API Usage
+
+You can also link against `libhvs_static.a` and use the C++ API directly:
+
+```cpp
+#include "hvs_hdf5.h"
+#include "hvs_index.h"
+
+// Load dataset and queries from HDF5 under /embeddings
+hvs::HDF5Matrix dataset, queries;
+hvs::read_hdf5_matrix("dataset.h5", "/embeddings", dataset);
+hvs::read_hdf5_matrix("query.h5", "/embeddings", queries);
+
+// Build HVS Index
+hvs::HVSIndex index(1 /* levels */, 0.5f /* delta */, hvs::MetricType::L2);
+index.build(dataset);
+
+// Batch Search
+std::vector<hvs::QueryResult> results = index.search_batch(queries, 10 /* k */, 1000 /* ef_search */);
+
+for (size_t q = 0; q < results.size(); ++q) {
+    std::cout << "Query " << q << " evaluated " << results[q].distance_computations << " distances.\n";
+    for (size_t i = 0; i < results[q].neighbor_ids.size(); ++i) {
+        std::cout << "  ID: " << results[q].neighbor_ids[i] << ", Dist: " << results[q].distances[i] << "\n";
+    }
+}
 ```

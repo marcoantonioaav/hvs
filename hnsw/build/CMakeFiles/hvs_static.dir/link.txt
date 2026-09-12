@@ -1,0 +1,2 @@
+/usr/bin/ar qc libhvs_static.a CMakeFiles/hvs_static.dir/hvs_hdf5.cpp.o CMakeFiles/hvs_static.dir/hvs_index.cpp.o
+/usr/bin/ranlib libhvs_static.a

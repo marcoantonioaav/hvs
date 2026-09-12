@@ -1,19 +1,28 @@
-cmake_minimum_required (VERSION 2.6)
-project (hnsw_lib)
+cmake_minimum_required (VERSION 3.10)
+project (hvs_benchmark)
 
-find_package(OpenCV REQUIRED)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories("${PROJECT_BINARY_DIR}" ${OpenCV_INCLUDE_DIRS})
+find_package(MPI REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS C)
 
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${HDF5_INCLUDE_DIRS}
+    ${MPI_CXX_INCLUDE_PATH}
+    ${MPI_C_INCLUDE_PATH}
+)
 
+set(HVS_LIB_SOURCES
+    hvs_hdf5.cpp
+    hvs_index.cpp
+)
 
-set(SOURCE_EXE main.cpp)            
+add_library(hvs_static STATIC ${HVS_LIB_SOURCES})
+target_link_libraries(hvs_static ${HDF5_LIBRARIES} ${MPI_CXX_LIBRARIES})
 
-set(SOURCE_LIB sift_1b.cpp)
+add_executable(main main.cpp ${HVS_LIB_SOURCES})
+set(CMAKE_CXX_FLAGS "-Ofast -DNDEBUG -march=native -fpic -w -fopenmp")
 
-add_library(sift_test STATIC ${SOURCE_LIB})
-
-
-add_executable(main ${SOURCE_EXE})
-SET( CMAKE_CXX_FLAGS  "-Ofast -lrt -DNDEBUG -std=c++11 -I /usr/local/boost_1_75_0 -DHAVE_CXX0X -openmp -march=native -fpic -w -fopenmp -ftree-vectorize -ftree-vectorizer-verbose=0" )
-target_link_libraries(main sift_test ${OpenCV_LIBS})  
+target_link_libraries(main ${HDF5_LIBRARIES} ${MPI_CXX_LIBRARIES})

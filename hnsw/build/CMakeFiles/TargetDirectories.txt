@@ -1,0 +1,4 @@
+/home/marco/GitHub/hvs/hnsw/build/CMakeFiles/hvs_static.dir
+/home/marco/GitHub/hvs/hnsw/build/CMakeFiles/main.dir
+/home/marco/GitHub/hvs/hnsw/build/CMakeFiles/edit_cache.dir
+/home/marco/GitHub/hvs/hnsw/build/CMakeFiles/rebuild_cache.dir
