@@ -27,7 +27,9 @@ public:
     ~HVSIndex();
 
     // Build the HVS index from an input dataset matrix
+    // Build the HVS index from an input dataset matrix or 2D vector
     bool build(const HDF5Matrix& matrix);
+    bool build(const std::vector<std::vector<float>>& dataset);
 
     // Save and load index files
     bool save_index(const std::string& index_prefix) const;
@@ -69,6 +71,8 @@ private:
 
     // Start book for initial candidate selection
     std::vector<std::vector<unsigned int>> start_book_;
+    // Start book for initial candidate selection (flat 1D vector)
+    std::vector<unsigned int> start_book_;
 
     // Object mappings across levels
     std::vector<std::vector<int>> init_obj_;

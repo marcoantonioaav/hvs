@@ -77,11 +77,66 @@ bool HVSIndex::build(const HDF5Matrix& matrix) {
         R_[i * dim_padded_ + i] = 1.0f;
     }
 
-    // Allocate start_book_ table
+    // Allocate start_book_ table (flat 1D vector)
     size_t tol = CEN * CEN * CEN * CEN;
-    start_book_.assign(tol, std::vector<unsigned int>(FAN, 0));
+    start_book_.assign(tol * FAN, 0);
 
     // Create level mapping arrays
+    init_obj_.assign(max_level_, std::vector<int>(num_vectors_, 0));
+    for (int lvl = 0; lvl < max_level_; ++lvl) {
+        for (size_t i = 0; i < num_vectors_; ++i) {
+            init_obj_[lvl][i] = static_cast<int>(i);
+        }
+    }
+
+    std::cout << "[HVS Index] Built structure: " << num_vectors_ << " vectors, dim=" << dim_ 
+              << ", levels=" << max_level_ << ", metric=" << (metric_ == MetricType::L2 ? "L2" : "Cosine") 
+              << std::endl;
+    return true;
+}
+
+bool HVSIndex::build(const std::vector<std::vector<float>>& dataset) {
+    if (dataset.empty() || dataset[0].empty()) return false;
+    num_vectors_ = dataset.size();
+    dim_ = dataset[0].size();
+
+    dataset_.resize(num_vectors_ * dim_);
+    for (size_t i = 0; i < num_vectors_; ++i) {
+        std::copy(dataset[i].begin(), dataset[i].end(), dataset_.begin() + i * dim_);
+    }
+
+    if (metric_ == MetricType::COSINE) {
+        for (size_t i = 0; i < num_vectors_; ++i) {
+            float* vec = &dataset_[i * dim_];
+            float sum_sq = 0.0f;
+            for (size_t d = 0; d < dim_; ++d) sum_sq += vec[d] * vec[d];
+            if (sum_sq > 0.0f) {
+                float inv_norm = 1.0f / std::sqrt(sum_sq);
+                for (size_t d = 0; d < dim_; ++d) vec[d] *= inv_norm;
+            }
+        }
+    }
+
+    int max_num = static_cast<int>(std::pow(2, max_level_ + OFF));
+    int remainder = dim_ % max_num;
+    int ratio = dim_ / max_num;
+    dim_padded_ = (remainder == 0) ? dim_ : (ratio + 1) * max_num;
+
+    length_.resize(max_level_);
+    dim_sub_.resize(max_level_);
+    for (int i = 0; i < max_level_; ++i) {
+        length_[i] = static_cast<int>(std::pow(2, max_level_ - i + OFF));
+        dim_sub_[i] = dim_padded_ / length_[i];
+    }
+
+    R_.assign(dim_padded_ * dim_padded_, 0.0f);
+    for (size_t i = 0; i < dim_padded_; ++i) {
+        R_[i * dim_padded_ + i] = 1.0f;
+    }
+
+    size_t tol = CEN * CEN * CEN * CEN;
+    start_book_.assign(tol * FAN, 0);
+
     init_obj_.assign(max_level_, std::vector<int>(num_vectors_, 0));
     for (int lvl = 0; lvl < max_level_; ++lvl) {
         for (size_t i = 0; i < num_vectors_; ++i) {
