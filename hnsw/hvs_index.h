@@ -69,8 +69,6 @@ private:
     // Codebooks per level: [level][subspace_idx][centroid_idx][sub_dim]
     std::vector<std::vector<std::vector<std::vector<float>>>> quantizer_;
 
-    // Start book for initial candidate selection
-    std::vector<std::vector<unsigned int>> start_book_;
     // Start book for initial candidate selection (flat 1D vector)
     std::vector<unsigned int> start_book_;
 
