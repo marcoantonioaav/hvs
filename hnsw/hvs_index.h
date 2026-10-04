@@ -45,6 +45,31 @@ public:
     size_t get_dimension() const { return dim_; }
     MetricType get_metric() const { return metric_; }
 
+    size_t get_index_size() const {
+        size_t size = 0;
+        size += R_.size() * sizeof(float);
+        size += length_.size() * sizeof(int);
+        size += dim_sub_.size() * sizeof(int);
+        size += count_obj_.size() * sizeof(int);
+        size += start_book_.size() * sizeof(unsigned int);
+        for (const auto& vec : init_obj_) {
+            size += vec.size() * sizeof(int);
+        }
+        for (const auto& l : obj_codes_) {
+            for (const auto& s : l) {
+                size += s.size() * sizeof(unsigned char);
+            }
+        }
+        for (const auto& l : quantizer_) {
+            for (const auto& s : l) {
+                for (const auto& c : s) {
+                    size += c.size() * sizeof(float);
+                }
+            }
+        }
+        return size;
+    }
+
 private:
     int max_level_;
     float delta_;
